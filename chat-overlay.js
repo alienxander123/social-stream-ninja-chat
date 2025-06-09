@@ -1,82 +1,93 @@
 <script>
 (function() {
     let messageCounter = 0;
-    const colors = ['color-1', 'color-2', 'color-3', 'color-4', 'color-5', 'color-6'];
-    const processedMessages = new Set();
-
-    function assignColors() {
-        // Buscar todos los mensajes
-        const messages = document.querySelectorAll('div[id^="msg_"], .highlight-chat');
+    const colors = ['color-cycle-1', 'color-cycle-2', 'color-cycle-3', 'color-cycle-4', 'color-cycle-5', 'color-cycle-6'];
+    
+    // Función para aplicar color a un mensaje
+    function applyColorToMessage(messageElement) {
+        // Remover cualquier clase de color anterior
+        colors.forEach(color => messageElement.classList.remove(color));
         
-        messages.forEach((message) => {
-            const nameElement = message.querySelector('.hl-name');
-            
-            if (nameElement && !processedMessages.has(message.id || message)) {
-                // Remover clases de color anteriores
-                colors.forEach(colorClass => {
-                    nameElement.classList.remove(colorClass);
-                });
-                
-                // Asignar nuevo color basado en el contador
-                const colorIndex = messageCounter % 6;
-                nameElement.classList.add(colors[colorIndex]);
-                
-                // Marcar como procesado
-                processedMessages.add(message.id || message);
-                messageCounter++;
+        // Aplicar el color correspondiente al ciclo
+        const colorIndex = messageCounter % 6;
+        messageElement.classList.add(colors[colorIndex]);
+        
+        messageCounter++;
+    }
+    
+    // Función para procesar mensajes existentes
+    function processExistingMessages() {
+        const messages = document.querySelectorAll('div[id^="msg_"], .highlight-chat');
+        messages.forEach((msg, index) => {
+            if (!msg.hasAttribute('data-color-applied')) {
+                const colorIndex = index % 6;
+                colors.forEach(color => msg.classList.remove(color));
+                msg.classList.add(colors[colorIndex]);
+                msg.setAttribute('data-color-applied', 'true');
             }
         });
-        
-        // Limpiar el set de mensajes procesados si se vuelve muy grande
-        if (processedMessages.size > 100) {
-            processedMessages.clear();
-        }
+        messageCounter = messages.length;
     }
-
+    
     // Observer para detectar nuevos mensajes
-    const observer = new MutationObserver((mutations) => {
-        let shouldProcess = false;
-        
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === 1) { // Element node
-                        if (node.id && node.id.startsWith('msg_') || 
-                            node.classList && node.classList.contains('highlight-chat')) {
-                            shouldProcess = true;
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // Buscar mensajes directos
+                    if ((node.id && node.id.startsWith('msg_')) || node.classList.contains('highlight-chat')) {
+                        if (!node.hasAttribute('data-color-applied')) {
+                            applyColorToMessage(node);
+                            node.setAttribute('data-color-applied', 'true');
                         }
                     }
-                });
-            }
+                    
+                    // Buscar mensajes dentro de nodos añadidos
+                    const childMessages = node.querySelectorAll('div[id^="msg_"], .highlight-chat');
+                    childMessages.forEach(function(childMsg) {
+                        if (!childMsg.hasAttribute('data-color-applied')) {
+                            applyColorToMessage(childMsg);
+                            childMsg.setAttribute('data-color-applied', 'true');
+                        }
+                    });
+                }
+            });
         });
-        
-        if (shouldProcess) {
-            setTimeout(assignColors, 100);
-        }
     });
-
-    // Función para inicializar
-    function init() {
-        // Asignar colores a mensajes existentes
-        assignColors();
+    
+    // Iniciar observación cuando el DOM esté listo
+    function initColorCycle() {
+        // Procesar mensajes existentes
+        processExistingMessages();
         
-        // Observar cambios en el DOM
-        observer.observe(document.body, {
+        // Observar cambios en el contenedor del chat
+        const chatContainer = document.body;
+        observer.observe(chatContainer, {
             childList: true,
             subtree: true
         });
         
-        console.log('Sistema de colores dinámicos inicializado');
-    }
-
-    // Inicializar cuando el DOM esté listo
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+        console.log('Color cycle iniciado - Contador:', messageCounter);
     }
     
-    // Backup: verificar cada 5 segundos por si acaso
-    setInterval(assignColors, 5000);
+    // Inicializar cuando el documento esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initColorCycle);
+    } else {
+        initColorCycle();
+    }
+    
+    // Re-procesar cada 5 segundos como backup
+    setInterval(function() {
+        const messages = document.querySelectorAll('div[id^="msg_"], .highlight-chat');
+        messages.forEach(function(msg, index) {
+            if (!msg.hasAttribute('data-color-applied')) {
+                const colorIndex = index % 6;
+                colors.forEach(color => msg.classList.remove(color));
+                msg.classList.add(colors[colorIndex]);
+                msg.setAttribute('data-color-applied', 'true');
+            }
+        });
+    }, 5000);
 })();
 </script>
